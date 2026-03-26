@@ -19,6 +19,7 @@
 //     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 const server = require('./src/app.js');
 const { conn, Diet } = require('./src/db.js');
+const PORT = process.env.PORT || 3001;
 
 const typesOfDiets = ["dairy free",
                       "fodmap friendly",
@@ -34,8 +35,8 @@ const typesOfDiets = ["dairy free",
 // Syncing all the models at once.
 conn.sync({ force: false })
     .then(() => {
-      server.listen(process.env.PORT, () => {
-          console.log('%s listening at 3001'); // eslint-disable-line no-console
+      server.listen(PORT, () => {
+          console.log(`API listening on port ${PORT}`); // eslint-disable-line no-console
           typesOfDiets.map((type) => Diet.findOrCreate({where: {name: type}}))
         });
     });

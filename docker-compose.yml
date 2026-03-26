@@ -1,0 +1,109 @@
+services:
+  db:
+    image: mysql:8.0
+    container_name: remodeling-db
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: admin
+      MYSQL_DATABASE: remodeling_db
+      TZ: UTC
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-padmin"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - remodeling-network
+
+  api:
+    build:
+      context: ./api
+      dockerfile: Dockerfile
+    container_name: remodeling-api
+    restart: unless-stopped
+    working_dir: /usr/src/app
+    command: sh -c "npm install && npm run dev"
+    environment:
+      DB_USER: root
+      DB_PASSWORD: admin
+      DB_HOST: db
+      DB_NAME: remodeling_db
+      PORT: 3001
+      TZ: UTC
+    ports:
+      - "3001:3001"
+    volumes:
+      - ./api:/usr/src/app
+      - api_node_modules:/usr/src/app/node_modules
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - remodeling-network
+
+  client:
+    build:
+      context: ./client
+      dockerfile: Dockerfile
+    container_name: remodeling-client
+    restart: unless-stopped
+    working_dir: /usr/src/app
+    command: sh -c "npm install && npm run dev -- --host 0.0.0.0 --port 5173"
+    environment:
+      VITE_API_URL: http://localhost:3001
+      TZ: UTC
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./client:/usr/src/app
+      - client_node_modules:/usr/src/app/node_modules
+    depends_on:
+      - api
+    networks:
+      - remodeling-network
+
+  nginx:
+    image: 'docker.io/jc21/nginx-proxy-manager:latest'
+    container_name: remodeling-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"      # HTTP
+      - "443:443"    # HTTPS (para cuando agregues certificados)
+      - "81:81"      # Interfaz web de administración
+    depends_on:
+      - api
+      - client
+      - db
+    volumes:
+      - ./nginx/data:/data
+      - ./nginx/letsencrypt:/etc/letsencrypt
+    networks:
+      - remodeling-network
+
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin:latest
+    container_name: remodeling-phpmyadmin
+    restart: unless-stopped
+    environment:
+      PMA_HOST: db
+      PMA_USER: root
+      PMA_PASSWORD: admin
+    ports:
+      - "9090:80"
+    depends_on:
+      - db
+    networks:
+      - remodeling-network
+
+networks:
+  remodeling-network:
+    driver: bridge
+
+volumes:
+  mysql_data:
+  api_node_modules:
+  client_node_modules:
