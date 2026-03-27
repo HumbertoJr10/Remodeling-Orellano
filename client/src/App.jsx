@@ -308,7 +308,9 @@ function App() {
   }
 
   const t = useMemo(() => content[language], [language])
-  const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+  const apiUrl =
+    import.meta.env.VITE_API_URL ||
+    `${window.location.protocol}//${window.location.hostname}:3001`
 
   const handleInputChange = (event) => {
     const { name, value } = event.target
