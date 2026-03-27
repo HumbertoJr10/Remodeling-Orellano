@@ -155,13 +155,22 @@ function App() {
     message: '',
   })
   const [sending, setSending] = useState(false)
-  const [formStatus, setFormStatus] = useState('')
+  const [toast, setToast] = useState({ show: false, type: 'success', message: '' })
 
   const companyName = 'RCO HIGH LEVEL CONSTRUCTION LLC - Orellano'
 
   useEffect(() => {
     document.title = companyName
   }, [companyName])
+
+  useEffect(() => {
+    if (!toast.show) return
+    const timeoutId = setTimeout(() => {
+      setToast((prev) => ({ ...prev, show: false }))
+    }, 2800)
+
+    return () => clearTimeout(timeoutId)
+  }, [toast.show])
 
   const content = {
     en: {
@@ -310,13 +319,12 @@ function App() {
     event.preventDefault()
 
     if (!form.name.trim() || !form.email.trim() || !form.message.trim()) {
-      setFormStatus(t.contact.error)
+      setToast({ show: true, type: 'error', message: t.contact.error })
       return
     }
 
     try {
       setSending(true)
-      setFormStatus('')
 
       const response = await fetch(`${apiUrl}/messages`, {
         method: 'POST',
@@ -336,9 +344,9 @@ function App() {
       }
 
       setForm({ name: '', email: '', phone: '', message: '' })
-      setFormStatus(t.contact.success)
+      setToast({ show: true, type: 'success', message: t.contact.success })
     } catch (error) {
-      setFormStatus(t.contact.error)
+      setToast({ show: true, type: 'error', message: t.contact.error })
     } finally {
       setSending(false)
     }
@@ -521,13 +529,18 @@ function App() {
                   <button type="submit" className="btn btn-primary" disabled={sending}>
                     {sending ? t.contact.sendingBtn : t.contact.sendBtn}
                   </button>
-                  {formStatus && <p className="form-status">{formStatus}</p>}
                 </form>
               </div>
             </article>
           </div>
         </section>
       </main>
+
+      {toast.show && (
+        <div className="toast-container">
+          <div className={`toast toast-${toast.type}`}>{toast.message}</div>
+        </div>
+      )}
 
       <footer className="footer">
         <p>{t.footer.line1}</p>
