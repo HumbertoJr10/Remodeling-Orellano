@@ -26,7 +26,7 @@ services:
     container_name: remodeling-api
     restart: unless-stopped
     working_dir: /usr/src/app
-    command: sh -c "npm install && npm run dev"
+    command: sh -c "npm install && npm start"
     environment:
       DB_USER: root
       DB_PASSWORD: admin

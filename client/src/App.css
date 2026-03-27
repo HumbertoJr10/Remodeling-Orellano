@@ -44,6 +44,7 @@
   gap: 1.6rem;
   margin: 0;
   padding: 0;
+  flex-wrap: wrap;
 }
 
 .top-nav a {
@@ -326,6 +327,10 @@
   z-index: 2;
 }
 
+.contact-info-grid > div {
+  min-width: 0;
+}
+
 .contact-info-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -522,8 +527,15 @@
 }
 
 @media (max-width: 980px) {
+  .panel {
+    min-height: auto;
+    padding-top: 2.5rem;
+    padding-bottom: 2.5rem;
+  }
+
   .hero {
     padding: 1rem 1rem 3rem;
+    min-height: 100vh;
   }
 
   .top-nav {
@@ -534,6 +546,13 @@
   .top-nav ul {
     flex-wrap: wrap;
     justify-content: center;
+    gap: 1rem;
+  }
+
+  .top-nav .brand {
+    text-align: center;
+    width: 100%;
+    font-size: 1.2rem;
   }
 
   .hero-content {
@@ -549,8 +568,12 @@
     padding: 1rem 0;
   }
 
+  .service-card img {
+    height: 180px;
+  }
+
   .services-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .carousel-control {
@@ -568,5 +591,97 @@
 
   .contact-info-grid {
     grid-template-columns: 1fr;
+  }
+
+  .project-video {
+    max-height: 360px;
+  }
+
+  .admin-page {
+    align-items: flex-start;
+    padding-top: 1.2rem;
+  }
+
+  .messages-table {
+    min-width: 680px;
+  }
+}
+
+@media (max-width: 700px) {
+  .services-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 600px) {
+  .panel {
+    padding-top: 2rem;
+    padding-bottom: 2rem;
+  }
+
+  .hero {
+    padding: 0.9rem 0.9rem 2.5rem;
+  }
+
+  .hero-content {
+    margin-top: 2.6rem;
+  }
+
+  .top-nav .brand {
+    font-size: 1.15rem;
+    text-align: center;
+  }
+
+  .top-nav a {
+    font-size: 0.86rem;
+  }
+
+  .top-nav ul {
+    gap: 0.7rem;
+  }
+
+  .nav-actions {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .cta-group {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .btn {
+    width: 100%;
+    text-align: center;
+  }
+
+  .contact-card {
+    padding: 0.85rem;
+  }
+
+  .contact-form-wrapper {
+    padding-top: 0.8rem;
+  }
+
+  .projects-carousel {
+    max-width: 100%;
+  }
+
+  .carousel-control {
+    top: 44%;
+  }
+
+  .project-video {
+    max-height: 260px;
+  }
+
+  .carousel-control {
+    width: 30px;
+    height: 30px;
+    font-size: 1.2rem;
+  }
+
+  .messages-table {
+    min-width: 560px;
   }
 }

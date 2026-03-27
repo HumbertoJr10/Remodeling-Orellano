@@ -4,7 +4,7 @@ import { BrowserRouter, Route, Routes } from 'react-router-dom'
 import App, { AdminMessagesView } from './App.jsx'
 import './index.css'
 
-const companyName = 'RCO HIGH LEVEL CONSTRUCTION LLC'
+const companyName = 'RCO HIGH LEVEL CONSTRUCTION LLC - Orellano'
 const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001'
 
 ReactDOM.createRoot(document.getElementById('root')).render(

@@ -157,7 +157,7 @@ function App() {
   const [sending, setSending] = useState(false)
   const [formStatus, setFormStatus] = useState('')
 
-  const companyName = 'RCO HIGH LEVEL CONSTRUCTION LLC'
+  const companyName = 'RCO HIGH LEVEL CONSTRUCTION LLC - Orellano'
 
   useEffect(() => {
     document.title = companyName
