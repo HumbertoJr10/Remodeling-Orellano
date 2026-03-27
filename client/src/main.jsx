@@ -5,7 +5,9 @@ import App, { AdminMessagesView } from './App.jsx'
 import './index.css'
 
 const companyName = 'RCO HIGH LEVEL CONSTRUCTION LLC - Orellano'
-const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+const apiUrl =
+  import.meta.env.VITE_API_URL ||
+  `${window.location.protocol}//${window.location.hostname}:3001`
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>

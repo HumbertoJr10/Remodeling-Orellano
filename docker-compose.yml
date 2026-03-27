@@ -54,7 +54,7 @@ services:
     working_dir: /usr/src/app
     command: sh -c "npm install && npm run dev -- --host 0.0.0.0 --port 5173"
     environment:
-      VITE_API_URL: http://localhost:3001
+      VITE_API_URL: http://3.19.33.248:3001
       TZ: UTC
     ports:
       - "5173:5173"
