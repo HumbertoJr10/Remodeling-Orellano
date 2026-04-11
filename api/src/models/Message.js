@@ -28,6 +28,12 @@ module.exports = (sequelize) => {
         allowNull: false,
         validate: { notEmpty: true },
       },
+      view: {
+        type: DataTypes.BOOLEAN,
+        allowNull: false,
+        defaultValue: false,
+        comment: 'true when the message has been read in the admin panel',
+      },
     },
     {
       timestamps: true,

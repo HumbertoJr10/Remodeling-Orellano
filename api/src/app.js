@@ -1,4 +1,5 @@
 const express = require('express');
+const path = require('path');
 const cookieParser = require('cookie-parser');
 const bodyParser = require('body-parser');
 const morgan = require('morgan');
@@ -30,6 +31,11 @@ server.use((req, res, next) => {
   }
   next();
 });
+
+server.use(
+  '/uploads',
+  express.static(path.join(__dirname, '../uploads')),
+);
 
 server.use('/', routes);
 

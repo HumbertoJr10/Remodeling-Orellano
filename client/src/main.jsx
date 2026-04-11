@@ -1,10 +1,14 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
-import { BrowserRouter, Route, Routes } from 'react-router-dom'
-import App, { AdminMessagesView } from './App.jsx'
+import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
+import App, {
+  AdminCarouselPanel,
+  AdminLayout,
+  AdminMessagesPanel,
+} from './App.jsx'
 import './index.css'
 
-const companyName = 'RCO HIGH LEVEL CONSTRUCTION LLC - Orellano'
+const companyName = 'RCO HIGH LEVEL CONSTRUCTION LLC'
 const apiUrl =
   import.meta.env.VITE_API_URL ||
   `${window.location.protocol}//${window.location.hostname}:3001`
@@ -15,9 +19,20 @@ ReactDOM.createRoot(document.getElementById('root')).render(
       <Routes>
         <Route path="/" element={<App />} />
         <Route
-          path="/admin/messages"
-          element={<AdminMessagesView apiUrl={apiUrl} companyName={companyName} />}
-        />
+          path="/admin"
+          element={<AdminLayout apiUrl={apiUrl} companyName={companyName} />}
+        >
+          <Route
+            index
+            element={<AdminMessagesPanel apiUrl={apiUrl} companyName={companyName} />}
+          />
+          <Route
+            path="carousel"
+            element={<AdminCarouselPanel apiUrl={apiUrl} companyName={companyName} />}
+          />
+        </Route>
+        <Route path="/create-skill" element={<Navigate to="/admin" replace />} />
+        <Route path="/admin/messages" element={<Navigate to="/admin" replace />} />
       </Routes>
     </BrowserRouter>
   </React.StrictMode>,

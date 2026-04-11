@@ -1,24 +1,11 @@
 import { useEffect, useMemo, useState } from 'react'
+import { NavLink, Outlet } from 'react-router-dom'
 import './App.css'
 
-const videoModules = import.meta.glob('./assets/videos/*.mp4', {
-  eager: true,
-  query: '?url',
-  import: 'default',
-})
-
-const projectVideos = Object.entries(videoModules)
-  .sort(([a], [b]) => a.localeCompare(b))
-  .map(([, url]) => url)
-
-export function AdminMessagesView({ apiUrl, companyName }) {
+export function AdminLayout({ apiUrl, companyName }) {
   const [password, setPassword] = useState('')
   const [isAuthorized, setIsAuthorized] = useState(false)
   const [authError, setAuthError] = useState('')
-  const [messages, setMessages] = useState([])
-  const [loading, setLoading] = useState(false)
-  const [loadError, setLoadError] = useState('')
-  const [deletingId, setDeletingId] = useState('')
 
   useEffect(() => {
     document.title = `${companyName} | Admin`
@@ -32,42 +19,6 @@ export function AdminMessagesView({ apiUrl, companyName }) {
       return
     }
     setAuthError('Invalid password')
-  }
-
-  useEffect(() => {
-    if (!isAuthorized) return
-
-    fetchMessages()
-  }, [apiUrl, isAuthorized])
-
-  const fetchMessages = async () => {
-    try {
-      setLoading(true)
-      setLoadError('')
-      const response = await fetch(`${apiUrl}/messages`)
-      if (!response.ok) throw new Error('Failed to fetch messages')
-      const data = await response.json()
-      setMessages(data)
-    } catch (error) {
-      setLoadError('Could not load messages from API.')
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const handleDeleteMessage = async (id) => {
-    try {
-      setDeletingId(id)
-      const response = await fetch(`${apiUrl}/messages/${id}`, {
-        method: 'DELETE',
-      })
-      if (!response.ok) throw new Error('Delete failed')
-      setMessages((prev) => prev.filter((message) => message.id !== id))
-    } catch (error) {
-      setLoadError('Could not delete message.')
-    } finally {
-      setDeletingId('')
-    }
   }
 
   if (!isAuthorized) {
@@ -94,45 +45,204 @@ export function AdminMessagesView({ apiUrl, companyName }) {
   }
 
   return (
-    <main className="admin-page">
+    <div className="admin-shell">
+      <aside className="admin-sidebar">
+        <div className="admin-sidebar-brand">Admin</div>
+        <nav className="admin-sidebar-nav">
+          <NavLink
+            to="/admin"
+            end
+            className={({ isActive }) =>
+              `admin-sidebar-link${isActive ? ' active' : ''}`
+            }
+          >
+            Messages
+          </NavLink>
+          <NavLink
+            to="/admin/carousel"
+            className={({ isActive }) =>
+              `admin-sidebar-link${isActive ? ' active' : ''}`
+            }
+          >
+            Carrusel
+          </NavLink>
+        </nav>
+      </aside>
+      <main className="admin-main">
+        <Outlet />
+      </main>
+    </div>
+  )
+}
+
+export function AdminMessagesPanel({ apiUrl, companyName }) {
+  const [messages, setMessages] = useState([])
+  const [loading, setLoading] = useState(false)
+  const [loadError, setLoadError] = useState('')
+  const [deletingId, setDeletingId] = useState('')
+  const [patchingId, setPatchingId] = useState('')
+  const [selectedMessage, setSelectedMessage] = useState(null)
+  const [actionsMenu, setActionsMenu] = useState(null)
+
+  useEffect(() => {
+    if (!actionsMenu) return undefined
+    const close = () => setActionsMenu(null)
+    const onScrollOrResize = () => close()
+    window.addEventListener('scroll', onScrollOrResize, true)
+    window.addEventListener('resize', onScrollOrResize)
+    const onDocMouseDown = (event) => {
+      if (event.target.closest('[data-admin-actions-root]')) return
+      close()
+    }
+    document.addEventListener('mousedown', onDocMouseDown)
+    return () => {
+      window.removeEventListener('scroll', onScrollOrResize, true)
+      window.removeEventListener('resize', onScrollOrResize)
+      document.removeEventListener('mousedown', onDocMouseDown)
+    }
+  }, [actionsMenu])
+
+  useEffect(() => {
+    fetchMessages()
+  }, [apiUrl])
+
+  const fetchMessages = async () => {
+    try {
+      setLoading(true)
+      setLoadError('')
+      const response = await fetch(`${apiUrl}/messages`)
+      if (!response.ok) throw new Error('Failed to fetch messages')
+      const data = await response.json()
+      setMessages(data)
+    } catch (error) {
+      setLoadError('Could not load messages from API.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const updateMessageView = async (id, view) => {
+    try {
+      setPatchingId(id)
+      const response = await fetch(`${apiUrl}/messages/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ view }),
+      })
+      if (!response.ok) throw new Error('Update failed')
+      const updated = await response.json()
+      setMessages((prev) =>
+        prev.map((m) => (m.id === id ? { ...m, ...updated } : m)),
+      )
+      setSelectedMessage((prev) =>
+        prev && prev.id === id ? { ...prev, ...updated } : prev,
+      )
+    } catch (error) {
+      setLoadError('Could not update message.')
+    } finally {
+      setPatchingId('')
+    }
+  }
+
+  const openMessage = (message) => {
+    setSelectedMessage(message)
+    if (!message.view) {
+      updateMessageView(message.id, true)
+    }
+  }
+
+  const handleMarkAsRead = (id) => {
+    updateMessageView(id, true)
+  }
+
+  const handleDeleteMessage = async (id) => {
+    try {
+      setDeletingId(id)
+      const response = await fetch(`${apiUrl}/messages/${id}`, {
+        method: 'DELETE',
+      })
+      if (!response.ok) throw new Error('Delete failed')
+      setMessages((prev) => prev.filter((message) => message.id !== id))
+      setSelectedMessage((prev) => (prev && prev.id === id ? null : prev))
+    } catch (error) {
+      setLoadError('Could not delete message.')
+    } finally {
+      setDeletingId('')
+    }
+  }
+
+  const toggleActionsMenu = (message, event) => {
+    event.stopPropagation()
+    const rect = event.currentTarget.getBoundingClientRect()
+    setActionsMenu((prev) =>
+      prev?.messageId === message.id
+        ? null
+        : { messageId: message.id, top: rect.bottom + 4, left: rect.left },
+    )
+  }
+
+  const menuMessage =
+    actionsMenu &&
+    messages.find((m) => m.id === actionsMenu.messageId)
+
+  return (
+    <>
       <section className="admin-card admin-messages">
-        <h1>{companyName}</h1>
-        <h2>Inbox Messages</h2>
+        <h1 className="admin-main-title">{companyName}</h1>
+        <h2>Mensajes</h2>
         {loading && <p>Loading messages...</p>}
         {loadError && <p className="admin-error">{loadError}</p>}
         {!loading && !loadError && messages.length === 0 && (
-          <p>No messages yet.</p>
+          <p>No hay mensajes todavía.</p>
         )}
         {!loading && !loadError && messages.length > 0 && (
           <div className="messages-table-wrap">
             <table className="messages-table">
               <thead>
                 <tr>
-                  <th>Name</th>
+                  <th>Estado</th>
+                  <th>Nombre</th>
                   <th>Email</th>
-                  <th>Phone</th>
-                  <th>Date</th>
-                  <th>Message</th>
-                  <th>Actions</th>
+                  <th>Fecha</th>
+                  <th>Acciones</th>
                 </tr>
               </thead>
               <tbody>
                 {messages.map((message) => (
-                  <tr key={message.id}>
+                  <tr
+                    key={message.id}
+                    className={
+                      message.view ? 'message-row-read' : 'message-row-unread'
+                    }
+                  >
+                    <td>
+                      {message.view ? (
+                        <span className="badge badge-read">Leído</span>
+                      ) : (
+                        <span className="badge badge-unread">No leído</span>
+                      )}
+                    </td>
                     <td>{message.name}</td>
                     <td>{message.email}</td>
-                    <td>{message.phone || '-'}</td>
                     <td>{new Date(message.createdAt).toLocaleString()}</td>
-                    <td className="table-message-cell">{message.message}</td>
-                    <td>
-                      <button
-                        type="button"
-                        className="btn btn-danger"
-                        onClick={() => handleDeleteMessage(message.id)}
-                        disabled={deletingId === message.id}
+                    <td className="table-actions-cell">
+                      <div
+                        className="admin-actions-dropdown"
+                        data-admin-actions-root
                       >
-                        {deletingId === message.id ? 'Deleting...' : 'Delete'}
-                      </button>
+                        <button
+                          type="button"
+                          className="admin-actions-trigger"
+                          aria-expanded={actionsMenu?.messageId === message.id}
+                          aria-haspopup="menu"
+                          onClick={(e) => toggleActionsMenu(message, e)}
+                        >
+                          Acciones
+                          <span className="admin-actions-caret" aria-hidden>
+                            ▾
+                          </span>
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -141,13 +251,284 @@ export function AdminMessagesView({ apiUrl, companyName }) {
           </div>
         )}
       </section>
-    </main>
+
+      {menuMessage && actionsMenu && (
+        <ul
+          className="admin-actions-dropdown-menu"
+          data-admin-actions-root
+          role="menu"
+          style={{
+            position: 'fixed',
+            top: actionsMenu.top,
+            left: actionsMenu.left,
+            zIndex: 2000,
+          }}
+        >
+          <li role="none">
+            <button
+              type="button"
+              role="menuitem"
+              className="admin-actions-menu-item"
+              onClick={() => {
+                openMessage(menuMessage)
+                setActionsMenu(null)
+              }}
+            >
+              Abrir
+            </button>
+          </li>
+          {!menuMessage.view && (
+            <li role="none">
+              <button
+                type="button"
+                role="menuitem"
+                className="admin-actions-menu-item"
+                disabled={patchingId === menuMessage.id}
+                onClick={() => {
+                  handleMarkAsRead(menuMessage.id)
+                  setActionsMenu(null)
+                }}
+              >
+                {patchingId === menuMessage.id ? 'Marcando…' : 'Marcar leído'}
+              </button>
+            </li>
+          )}
+          <li role="none">
+            <button
+              type="button"
+              role="menuitem"
+              className="admin-actions-menu-item admin-actions-menu-item-danger"
+              disabled={deletingId === menuMessage.id}
+              onClick={() => {
+                handleDeleteMessage(menuMessage.id)
+                setActionsMenu(null)
+              }}
+            >
+              {deletingId === menuMessage.id ? 'Eliminando…' : 'Eliminar'}
+            </button>
+          </li>
+        </ul>
+      )}
+
+      {selectedMessage && (
+        <div
+          className="admin-modal-backdrop"
+          role="presentation"
+          onClick={() => setSelectedMessage(null)}
+        >
+          <div
+            className="admin-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="admin-modal-title"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="admin-modal-header">
+              <h3 id="admin-modal-title">Mensaje</h3>
+              <button
+                type="button"
+                className="admin-modal-close"
+                onClick={() => setSelectedMessage(null)}
+                aria-label="Cerrar"
+              >
+                ×
+              </button>
+            </div>
+            <div className="admin-modal-body">
+              <p>
+                <strong>De:</strong> {selectedMessage.name} —{' '}
+                {selectedMessage.email}
+              </p>
+              {selectedMessage.phone && (
+                <p>
+                  <strong>Teléfono:</strong> {selectedMessage.phone}
+                </p>
+              )}
+              <p>
+                <strong>Fecha:</strong>{' '}
+                {new Date(selectedMessage.createdAt).toLocaleString()}
+              </p>
+              <p>
+                <strong>Estado:</strong>{' '}
+                {selectedMessage.view ? 'Leído' : 'No leído'}
+              </p>
+              <div className="admin-modal-message">
+                <strong>Mensaje</strong>
+                <p>{selectedMessage.message}</p>
+              </div>
+            </div>
+            <div className="admin-modal-footer">
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={() => setSelectedMessage(null)}
+              >
+                Cerrar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  )
+}
+
+export function AdminCarouselPanel({ apiUrl, companyName }) {
+  const [items, setItems] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState('')
+  const [uploading, setUploading] = useState(false)
+  const [uploadError, setUploadError] = useState('')
+  const [deletingId, setDeletingId] = useState('')
+
+  const loadItems = async () => {
+    try {
+      setLoading(true)
+      setLoadError('')
+      const response = await fetch(`${apiUrl}/carousel`)
+      if (!response.ok) throw new Error('fetch failed')
+      const data = await response.json()
+      setItems(data.items || [])
+    } catch (e) {
+      setLoadError('No se pudo cargar el carrusel.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    loadItems()
+  }, [apiUrl])
+
+  const handleUpload = async (event) => {
+    event.preventDefault()
+    const input = event.target.elements.file
+    const file = input?.files?.[0]
+    if (!file) {
+      setUploadError('Selecciona un archivo.')
+      return
+    }
+    try {
+      setUploading(true)
+      setUploadError('')
+      const formData = new FormData()
+      formData.append('file', file)
+      const response = await fetch(`${apiUrl}/carousel`, {
+        method: 'POST',
+        body: formData,
+      })
+      const data = await response.json().catch(() => ({}))
+      if (!response.ok) {
+        throw new Error(data.error || 'Error al subir')
+      }
+      event.target.reset()
+      await loadItems()
+    } catch (e) {
+      setUploadError(e.message || 'Error al subir.')
+    } finally {
+      setUploading(false)
+    }
+  }
+
+  const handleDelete = async (id) => {
+    try {
+      setDeletingId(id)
+      const response = await fetch(`${apiUrl}/carousel/${id}`, {
+        method: 'DELETE',
+      })
+      if (!response.ok) throw new Error('delete failed')
+      setItems((prev) => prev.filter((item) => item.id !== id))
+    } catch (e) {
+      setLoadError('No se pudo eliminar el archivo.')
+    } finally {
+      setDeletingId('')
+    }
+  }
+
+  const mediaUrl = (item) => {
+    if (item.url.startsWith('http')) return item.url
+    return `${apiUrl.replace(/\/$/, '')}${item.url}`
+  }
+
+  return (
+    <section className="admin-card admin-carousel-panel">
+      <h1 className="admin-main-title">{companyName}</h1>
+      <h2>Carrusel (inicio)</h2>
+      <p className="admin-carousel-hint">
+        Sube videos o imágenes. Se mostrarán en el carrusel de la sección Proyectos.
+      </p>
+
+      <form className="admin-carousel-upload" onSubmit={handleUpload}>
+        <label className="admin-carousel-file-label">
+          <span>Archivo</span>
+          <input
+            name="file"
+            type="file"
+            accept="image/*,video/*"
+            required
+            disabled={uploading}
+          />
+        </label>
+        <button
+          type="submit"
+          className="btn btn-primary"
+          disabled={uploading}
+        >
+          {uploading ? 'Subiendo…' : 'Subir'}
+        </button>
+        {uploadError && <p className="admin-error">{uploadError}</p>}
+      </form>
+
+      {loading && <p>Cargando…</p>}
+      {loadError && <p className="admin-error">{loadError}</p>}
+
+      {!loading && !loadError && items.length === 0 && (
+        <p>No hay archivos en el carrusel todavía.</p>
+      )}
+
+      {!loading && items.length > 0 && (
+        <ul className="admin-carousel-list">
+          {items.map((item) => (
+            <li key={item.id} className="admin-carousel-item">
+              <div className="admin-carousel-thumb">
+                {item.kind === 'video' ? (
+                  <video
+                    src={mediaUrl(item)}
+                    muted
+                    playsInline
+                    preload="metadata"
+                  />
+                ) : (
+                  <img src={mediaUrl(item)} alt="" />
+                )}
+              </div>
+              <div className="admin-carousel-meta">
+                <span className="admin-carousel-kind">
+                  {item.kind === 'video' ? 'Video' : 'Imagen'}
+                </span>
+                <span className="admin-carousel-name">{item.fileName}</span>
+              </div>
+              <button
+                type="button"
+                className="btn btn-danger btn-sm"
+                disabled={deletingId === item.id}
+                onClick={() => handleDelete(item.id)}
+              >
+                {deletingId === item.id ? '…' : 'Eliminar'}
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
   )
 }
 
 function App() {
   const [language, setLanguage] = useState('en')
-  const [activeVideoIndex, setActiveVideoIndex] = useState(0)
+  const [activeSlideIndex, setActiveSlideIndex] = useState(0)
+  const [carouselSlides, setCarouselSlides] = useState([])
+  const [carouselLoading, setCarouselLoading] = useState(true)
   const [form, setForm] = useState({
     name: '',
     email: '',
@@ -157,7 +538,7 @@ function App() {
   const [sending, setSending] = useState(false)
   const [toast, setToast] = useState({ show: false, type: 'success', message: '' })
 
-  const companyName = 'RCO HIGH LEVEL CONSTRUCTION LLC - Orellano'
+  const companyName = 'RCO HIGH LEVEL CONSTRUCTION LLC'
 
   useEffect(() => {
     document.title = companyName
@@ -312,6 +693,36 @@ function App() {
     import.meta.env.VITE_API_URL ||
     `${window.location.protocol}//${window.location.hostname}:3001`
 
+  useEffect(() => {
+    let cancelled = false
+    const loadCarousel = async () => {
+      try {
+        setCarouselLoading(true)
+        const response = await fetch(`${apiUrl}/carousel`)
+        if (!response.ok) throw new Error('carousel fetch failed')
+        const data = await response.json()
+        const items = data.items || []
+        const base = apiUrl.replace(/\/$/, '')
+        const slides = items.map((item) => ({
+          kind: item.kind,
+          src: item.url.startsWith('http') ? item.url : `${base}${item.url}`,
+        }))
+        if (!cancelled) {
+          setCarouselSlides(slides)
+          setActiveSlideIndex(0)
+        }
+      } catch {
+        if (!cancelled) setCarouselSlides([])
+      } finally {
+        if (!cancelled) setCarouselLoading(false)
+      }
+    }
+    loadCarousel()
+    return () => {
+      cancelled = true
+    }
+  }, [apiUrl])
+
   const handleInputChange = (event) => {
     const { name, value } = event.target
     setForm((prev) => ({ ...prev, [name]: value }))
@@ -354,14 +765,16 @@ function App() {
     }
   }
 
-  const goToPrevVideo = () => {
-    if (!projectVideos.length) return
-    setActiveVideoIndex((prev) => (prev - 1 + projectVideos.length) % projectVideos.length)
+  const goToPrevSlide = () => {
+    if (!carouselSlides.length) return
+    setActiveSlideIndex(
+      (prev) => (prev - 1 + carouselSlides.length) % carouselSlides.length,
+    )
   }
 
-  const goToNextVideo = () => {
-    if (!projectVideos.length) return
-    setActiveVideoIndex((prev) => (prev + 1) % projectVideos.length)
+  const goToNextSlide = () => {
+    if (!carouselSlides.length) return
+    setActiveSlideIndex((prev) => (prev + 1) % carouselSlides.length)
   }
 
   return (
@@ -433,35 +846,54 @@ function App() {
             <h2>{t.sections.projectsTitle}</h2>
             <p>{t.sections.projectsDescription}</p>
             <div className="projects-carousel">
-              {projectVideos.length > 0 ? (
+              {carouselLoading && <p>Cargando proyectos…</p>}
+              {!carouselLoading && carouselSlides.length > 0 ? (
                 <>
-                  <button type="button" className="carousel-control prev" onClick={goToPrevVideo}>
+                  <button
+                    type="button"
+                    className="carousel-control prev"
+                    onClick={goToPrevSlide}
+                  >
                     ‹
                   </button>
-                  <video
-                    key={projectVideos[activeVideoIndex]}
-                    className="project-video"
-                    src={projectVideos[activeVideoIndex]}
-                    controls
-                    preload="metadata"
-                  />
-                  <button type="button" className="carousel-control next" onClick={goToNextVideo}>
+                  {carouselSlides[activeSlideIndex].kind === 'video' ? (
+                    <video
+                      key={carouselSlides[activeSlideIndex].src}
+                      className="project-video project-carousel-media"
+                      src={carouselSlides[activeSlideIndex].src}
+                      controls
+                      preload="metadata"
+                    />
+                  ) : (
+                    <img
+                      key={carouselSlides[activeSlideIndex].src}
+                      className="project-video project-carousel-media project-carousel-image"
+                      src={carouselSlides[activeSlideIndex].src}
+                      alt=""
+                    />
+                  )}
+                  <button
+                    type="button"
+                    className="carousel-control next"
+                    onClick={goToNextSlide}
+                  >
                     ›
                   </button>
                   <div className="carousel-dots">
-                    {projectVideos.map((_, index) => (
+                    {carouselSlides.map((_, index) => (
                       <button
                         key={`dot-${index}`}
                         type="button"
-                        className={`dot ${index === activeVideoIndex ? 'active' : ''}`}
-                        onClick={() => setActiveVideoIndex(index)}
-                        aria-label={`Go to project video ${index + 1}`}
+                        className={`dot ${index === activeSlideIndex ? 'active' : ''}`}
+                        onClick={() => setActiveSlideIndex(index)}
+                        aria-label={`Ir al elemento ${index + 1}`}
                       />
                     ))}
                   </div>
                 </>
-              ) : (
-                <p>No project videos found in assets/videos.</p>
+              ) : null}
+              {!carouselLoading && carouselSlides.length === 0 && (
+                <p>No hay imágenes ni videos en el carrusel todavía.</p>
               )}
             </div>
           </div>

@@ -18,7 +18,7 @@
 //                       `=---='
 //     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 const server = require('./src/app.js');
-const { conn, Diet } = require('./src/db.js');
+const { conn, Diet, Message } = require('./src/db.js');
 const PORT = process.env.PORT || 3001;
 
 const typesOfDiets = ["dairy free",
@@ -32,11 +32,13 @@ const typesOfDiets = ["dairy free",
                       "vegan",
                       "whole 30"]
 
-// Syncing all the models at once.
-conn.sync({ force: false })
-    .then(() => {
-      server.listen(PORT, () => {
-          console.log(`API listening on port ${PORT}`); // eslint-disable-line no-console
-          typesOfDiets.map((type) => Diet.findOrCreate({where: {name: type}}))
-        });
+// Syncing all the models at once; alter only Message to add new columns safely.
+conn
+  .sync({ force: false })
+  .then(() => Message.sync({ alter: true }))
+  .then(() => {
+    server.listen(PORT, () => {
+      console.log(`API listening on port ${PORT}`); // eslint-disable-line no-console
+      typesOfDiets.map((type) => Diet.findOrCreate({ where: { name: type } }));
     });
+  });
