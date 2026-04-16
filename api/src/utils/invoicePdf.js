@@ -39,10 +39,10 @@ async function getHeaderBackground() {
 async function getCompanySignature() {
   if (!companySignaturePromise) {
     companySignaturePromise = (async () => {
+      const bundledSignature = path.join(__dirname, '../../assets/company-signature.png');
       const candidates = [
         process.env.COMPANY_SIGNATURE_PATH,
-        path.join(__dirname, '../../assets/company-signature.png'),
-        'C:/Users/Ariannys/.cursor/projects/c-Users-Ariannys-Desktop-Proyectos-Remodeling-Orellano/assets/c__Users_Ariannys_AppData_Roaming_Cursor_User_workspaceStorage_476e40c02d166302f8665d2e5c5882df_images_image-15c5d16d-6eae-4cce-919b-57ba714bbee2.png',
+        bundledSignature,
       ].filter(Boolean);
 
       for (const candidate of candidates) {
