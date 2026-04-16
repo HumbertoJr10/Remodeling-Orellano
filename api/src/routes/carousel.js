@@ -24,12 +24,24 @@ const upload = multer({
 router.get('/', getCarousel);
 
 router.post('/', (req, res, next) => {
+  // eslint-disable-next-line no-console
+  console.log('[carousel:upload]', new Date().toISOString(), 'multer: inicio recepción');
   upload.single('file')(req, res, (err) => {
     if (err) {
+      // eslint-disable-next-line no-console
+      console.log('[carousel:upload]', new Date().toISOString(), 'multer: error', err.message);
       return res.status(400).json({
         error: err.message || 'Error al subir el archivo',
       });
     }
+    const f = req.file;
+    // eslint-disable-next-line no-console
+    console.log(
+      '[carousel:upload]',
+      new Date().toISOString(),
+      'multer: archivo en disco',
+      f ? { name: f.filename, bytes: f.size, mime: f.mimetype } : 'sin archivo',
+    );
     return next();
   });
 }, postCarousel);

@@ -66,6 +66,14 @@ export function AdminLayout({ apiUrl, companyName }) {
           >
             Carrusel
           </NavLink>
+          <NavLink
+            to="/admin/facturacion"
+            className={({ isActive }) =>
+              `admin-sidebar-link${isActive ? ' active' : ''}`
+            }
+          >
+            Facturacion
+          </NavLink>
         </nav>
       </aside>
       <main className="admin-main">
@@ -378,21 +386,28 @@ export function AdminCarouselPanel({ apiUrl, companyName }) {
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState('')
   const [uploading, setUploading] = useState(false)
-  const [uploadError, setUploadError] = useState('')
   const [deletingId, setDeletingId] = useState('')
+  const [toast, setToast] = useState({ show: false, type: 'success', message: '' })
 
-  const loadItems = async () => {
+  const loadItems = async (options = {}) => {
+    const silent = Boolean(options.silent)
     try {
-      setLoading(true)
-      setLoadError('')
+      if (!silent) {
+        setLoading(true)
+        setLoadError('')
+      }
       const response = await fetch(`${apiUrl}/carousel`)
       if (!response.ok) throw new Error('fetch failed')
       const data = await response.json()
       setItems(data.items || [])
     } catch (e) {
-      setLoadError('No se pudo cargar el carrusel.')
+      if (!silent) {
+        setLoadError('No se pudo cargar el carrusel.')
+      }
     } finally {
-      setLoading(false)
+      if (!silent) {
+        setLoading(false)
+      }
     }
   }
 
@@ -400,17 +415,28 @@ export function AdminCarouselPanel({ apiUrl, companyName }) {
     loadItems()
   }, [apiUrl])
 
+  useEffect(() => {
+    if (!toast.show) return undefined
+    const timeoutId = setTimeout(() => {
+      setToast((prev) => ({ ...prev, show: false }))
+    }, 3200)
+    return () => clearTimeout(timeoutId)
+  }, [toast.show])
+
   const handleUpload = async (event) => {
     event.preventDefault()
     const input = event.target.elements.file
     const file = input?.files?.[0]
     if (!file) {
-      setUploadError('Selecciona un archivo.')
+      setToast({
+        show: true,
+        type: 'error',
+        message: 'Selecciona un archivo antes de subir.',
+      })
       return
     }
     try {
       setUploading(true)
-      setUploadError('')
       const formData = new FormData()
       formData.append('file', file)
       const response = await fetch(`${apiUrl}/carousel`, {
@@ -419,12 +445,21 @@ export function AdminCarouselPanel({ apiUrl, companyName }) {
       })
       const data = await response.json().catch(() => ({}))
       if (!response.ok) {
-        throw new Error(data.error || 'Error al subir')
+        throw new Error(data.error || 'Error al subir el archivo')
       }
       event.target.reset()
-      await loadItems()
+      await loadItems({ silent: true })
+      setToast({
+        show: true,
+        type: 'success',
+        message: 'Archivo subido correctamente.',
+      })
     } catch (e) {
-      setUploadError(e.message || 'Error al subir.')
+      setToast({
+        show: true,
+        type: 'error',
+        message: e.message || 'No se pudo subir el archivo.',
+      })
     } finally {
       setUploading(false)
     }
@@ -438,8 +473,17 @@ export function AdminCarouselPanel({ apiUrl, companyName }) {
       })
       if (!response.ok) throw new Error('delete failed')
       setItems((prev) => prev.filter((item) => item.id !== id))
+      setToast({
+        show: true,
+        type: 'success',
+        message: 'Elemento eliminado del carrusel.',
+      })
     } catch (e) {
-      setLoadError('No se pudo eliminar el archivo.')
+      setToast({
+        show: true,
+        type: 'error',
+        message: 'No se pudo eliminar el archivo.',
+      })
     } finally {
       setDeletingId('')
     }
@@ -452,6 +496,15 @@ export function AdminCarouselPanel({ apiUrl, companyName }) {
 
   return (
     <section className="admin-card admin-carousel-panel">
+      {uploading && (
+        <div className="admin-upload-overlay" role="status" aria-live="polite">
+          <div className="admin-upload-overlay-inner">
+            <span className="admin-upload-spinner" aria-hidden />
+            <p>Subiendo archivo…</p>
+          </div>
+        </div>
+      )}
+
       <h1 className="admin-main-title">{companyName}</h1>
       <h2>Carrusel (inicio)</h2>
       <p className="admin-carousel-hint">
@@ -474,9 +527,8 @@ export function AdminCarouselPanel({ apiUrl, companyName }) {
           className="btn btn-primary"
           disabled={uploading}
         >
-          {uploading ? 'Subiendo…' : 'Subir'}
+          Subir
         </button>
-        {uploadError && <p className="admin-error">{uploadError}</p>}
       </form>
 
       {loading && <p>Cargando…</p>}
@@ -519,6 +571,422 @@ export function AdminCarouselPanel({ apiUrl, companyName }) {
             </li>
           ))}
         </ul>
+      )}
+
+      {toast.show && (
+        <div className="toast-container">
+          <div className={`toast toast-${toast.type}`}>{toast.message}</div>
+        </div>
+      )}
+    </section>
+  )
+}
+
+export function AdminBillingPanel({ apiUrl, companyName }) {
+  const [customerName, setCustomerName] = useState('')
+  const [invoiceDate, setInvoiceDate] = useState(() => new Date().toISOString().slice(0, 10))
+  const [items, setItems] = useState([
+    { id: `item-${Date.now()}`, name: '', quantity: 1, price: 0 },
+  ])
+  const [invoices, setInvoices] = useState([])
+  const [loadingInvoices, setLoadingInvoices] = useState(false)
+  const [generating, setGenerating] = useState(false)
+  const [regeneratingDesign, setRegeneratingDesign] = useState(false)
+  const [deletingInvoiceId, setDeletingInvoiceId] = useState('')
+  const [toast, setToast] = useState({ show: false, type: 'success', message: '' })
+
+  const total = useMemo(
+    () => items.reduce((sum, item) => sum + Number(item.quantity || 0) * Number(item.price || 0), 0),
+    [items],
+  )
+
+  const loadInvoices = async () => {
+    try {
+      setLoadingInvoices(true)
+      const response = await fetch(`${apiUrl}/invoices`)
+      if (!response.ok) throw new Error('No se pudo cargar facturas')
+      const data = await response.json()
+      setInvoices(Array.isArray(data) ? data : [])
+    } catch (error) {
+      setToast({
+        show: true,
+        type: 'error',
+        message: error.message || 'No se pudo cargar la lista de facturas',
+      })
+    } finally {
+      setLoadingInvoices(false)
+    }
+  }
+
+  useEffect(() => {
+    loadInvoices()
+  }, [apiUrl])
+
+  useEffect(() => {
+    if (!toast.show) return undefined
+    const timeoutId = setTimeout(() => {
+      setToast((prev) => ({ ...prev, show: false }))
+    }, 3200)
+    return () => clearTimeout(timeoutId)
+  }, [toast.show])
+
+  const addItem = () => {
+    setItems((prev) => [
+      ...prev,
+      { id: `item-${Date.now()}-${prev.length}`, name: '', quantity: 1, price: 0 },
+    ])
+  }
+
+  const removeItem = (id) => {
+    setItems((prev) => (prev.length === 1 ? prev : prev.filter((item) => item.id !== id)))
+  }
+
+  const updateItem = (id, field, value) => {
+    setItems((prev) => prev.map((item) => (item.id === id ? { ...item, [field]: value } : item)))
+  }
+
+  const formatMoney = (value) =>
+    Number(value || 0).toLocaleString('en-US', {
+      style: 'currency',
+      currency: 'USD',
+      minimumFractionDigits: 2,
+    })
+
+  const fullPdfUrl = (pdfPath) => {
+    if (!pdfPath) return null
+    return pdfPath.startsWith('http')
+      ? pdfPath
+      : `${apiUrl.replace(/\/$/, '')}${pdfPath}`
+  }
+
+  const openInvoicePdf = (invoice) => {
+    const url = fullPdfUrl(invoice.pdfPath)
+    if (!url) {
+      setToast({
+        show: true,
+        type: 'error',
+        message: 'No hay PDF guardado para esta factura.',
+      })
+      return
+    }
+    window.open(url, '_blank', 'noopener,noreferrer')
+  }
+
+  const handleInvoiceRowKeyDown = (event, invoice) => {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault()
+      openInvoicePdf(invoice)
+    }
+  }
+
+  const handleDeleteInvoice = async (event, invoice) => {
+    event.stopPropagation()
+    const confirmed = window.confirm(
+      `¿Eliminar la factura #${invoice.invoiceNumber}? Esta acción no se puede deshacer.`,
+    )
+    if (!confirmed) return
+
+    try {
+      setDeletingInvoiceId(invoice.id)
+      const response = await fetch(`${apiUrl}/invoices/${invoice.id}`, {
+        method: 'DELETE',
+      })
+      const data = await response.json().catch(() => ({}))
+      if (!response.ok) throw new Error(data.error || 'No se pudo eliminar la factura')
+
+      setInvoices((prev) => prev.filter((inv) => inv.id !== invoice.id))
+      setToast({
+        show: true,
+        type: 'success',
+        message: `Factura #${invoice.invoiceNumber} eliminada.`,
+      })
+    } catch (error) {
+      setToast({
+        show: true,
+        type: 'error',
+        message: error.message || 'Error al eliminar factura.',
+      })
+    } finally {
+      setDeletingInvoiceId('')
+    }
+  }
+
+  const handleRegenerateAllPdfs = async () => {
+    if (invoices.length === 0) {
+      setToast({
+        show: true,
+        type: 'error',
+        message: 'No hay facturas para actualizar.',
+      })
+      return
+    }
+    try {
+      setRegeneratingDesign(true)
+      const response = await fetch(`${apiUrl}/invoices/regenerate-all`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      })
+      const data = await response.json().catch(() => ({}))
+      if (!response.ok) throw new Error(data.error || 'No se pudo regenerar')
+
+      const failed = data.failed?.length || 0
+      if (failed > 0) {
+        setToast({
+          show: true,
+          type: 'error',
+          message: `Actualizados ${data.ok || 0} PDFs; ${failed} con error (revisa consola del servidor).`,
+        })
+      } else {
+        setToast({
+          show: true,
+          type: 'success',
+          message: `Listo: ${data.ok || 0} PDF(s) actualizados al diseño nuevo.`,
+        })
+      }
+      await loadInvoices()
+    } catch (error) {
+      setToast({
+        show: true,
+        type: 'error',
+        message: error.message || 'Error al regenerar PDFs.',
+      })
+    } finally {
+      setRegeneratingDesign(false)
+    }
+  }
+
+  const handleGeneratePdf = async (event) => {
+    event.preventDefault()
+
+    if (!customerName.trim()) {
+      setToast({ show: true, type: 'error', message: 'Ingresa el customer name.' })
+      return
+    }
+    const hasInvalid = items.some(
+      (item) => !item.name.trim() || Number(item.quantity) <= 0 || Number(item.price) < 0,
+    )
+    if (hasInvalid) {
+      setToast({
+        show: true,
+        type: 'error',
+        message: 'Completa todos los items (nombre, cantidad y valor válidos).',
+      })
+      return
+    }
+
+    try {
+      setGenerating(true)
+      const payload = {
+        customerName: customerName.trim(),
+        invoiceDate,
+        items: items.map((item) => ({
+          name: item.name.trim(),
+          quantity: Number(item.quantity),
+          price: Number(item.price),
+        })),
+      }
+
+      const response = await fetch(`${apiUrl}/invoices/generate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      })
+      const data = await response.json().catch(() => ({}))
+      if (!response.ok) throw new Error(data.error || 'No se pudo generar la factura')
+
+      const pdfUrl = data?.invoice?.pdfUrl
+      if (pdfUrl) {
+        const fullUrl = fullPdfUrl(pdfUrl)
+        if (fullUrl) window.open(fullUrl, '_blank', 'noopener,noreferrer')
+      }
+
+      setToast({
+        show: true,
+        type: 'success',
+        message: `Factura #${data?.invoice?.invoiceNumber || ''} generada con éxito.`,
+      })
+      await loadInvoices()
+    } catch (error) {
+      setToast({
+        show: true,
+        type: 'error',
+        message: error.message || 'Error al generar la factura.',
+      })
+    } finally {
+      setGenerating(false)
+    }
+  }
+
+  return (
+    <section className="admin-card admin-billing-panel">
+      {(generating || regeneratingDesign) && (
+        <div className="admin-upload-overlay" role="status" aria-live="polite">
+          <div className="admin-upload-overlay-inner">
+            <span className="admin-upload-spinner" aria-hidden />
+            <p>{regeneratingDesign ? 'Actualizando PDFs…' : 'Generando PDF…'}</p>
+          </div>
+        </div>
+      )}
+
+      <h1 className="admin-main-title">{companyName}</h1>
+      <h2>Facturacion</h2>
+
+      <form className="billing-form" onSubmit={handleGeneratePdf}>
+        <div className="billing-top-fields">
+          <label>
+            <span>Customer name</span>
+            <input
+              type="text"
+              value={customerName}
+              onChange={(e) => setCustomerName(e.target.value)}
+              placeholder="Nombre del cliente"
+              required
+            />
+          </label>
+          <label>
+            <span>Fecha</span>
+            <input
+              type="date"
+              value={invoiceDate}
+              onChange={(e) => setInvoiceDate(e.target.value)}
+              required
+            />
+          </label>
+        </div>
+
+        <div className="billing-items-head">
+          <h3>Items</h3>
+          <button type="button" className="btn btn-outline" onClick={addItem}>
+            + Agregar item
+          </button>
+        </div>
+
+        <div className="billing-items">
+          {items.map((item, index) => (
+            <div key={item.id} className="billing-item-row">
+              <input
+                type="text"
+                placeholder="Nombre del item"
+                value={item.name}
+                onChange={(e) => updateItem(item.id, 'name', e.target.value)}
+                required
+              />
+              <input
+                type="number"
+                min="1"
+                step="1"
+                placeholder="Cantidad"
+                value={item.quantity}
+                onChange={(e) => updateItem(item.id, 'quantity', e.target.value)}
+                required
+              />
+              <input
+                type="number"
+                min="0"
+                step="0.01"
+                placeholder="Valor"
+                value={item.price}
+                onChange={(e) => updateItem(item.id, 'price', e.target.value)}
+                required
+              />
+              <div className="billing-subtotal">
+                {formatMoney(Number(item.quantity || 0) * Number(item.price || 0))}
+              </div>
+              <button
+                type="button"
+                className="btn btn-danger btn-sm"
+                onClick={() => removeItem(item.id)}
+                disabled={items.length === 1}
+                aria-label={`Eliminar item ${index + 1}`}
+              >
+                Eliminar
+              </button>
+            </div>
+          ))}
+        </div>
+
+        <div className="billing-footer">
+          <div className="billing-total">
+            <span>Total:</span>
+            <strong>{formatMoney(total)}</strong>
+          </div>
+          <button
+            type="submit"
+            className="btn btn-primary"
+            disabled={generating || regeneratingDesign}
+          >
+            Generar PDF
+          </button>
+        </div>
+      </form>
+
+      <section className="billing-history">
+        <div className="billing-history-head">
+          <h3>Facturas generadas</h3>
+          <button
+            type="button"
+            className="btn btn-outline billing-regenerate-btn"
+            disabled={regeneratingDesign || generating || loadingInvoices || invoices.length === 0}
+            onClick={handleRegenerateAllPdfs}
+          >
+            Actualizar diseño de PDFs
+          </button>
+        </div>
+        <p className="billing-history-hint">
+          Haz clic en una fila para abrir o descargar el PDF. Si tienes facturas antiguas, usa el botón
+          para volver a generar los archivos con el diseño actual (misma URL).
+        </p>
+        {loadingInvoices && <p>Cargando facturas…</p>}
+        {!loadingInvoices && invoices.length === 0 && <p>No hay facturas generadas aún.</p>}
+        {!loadingInvoices && invoices.length > 0 && (
+          <div className="messages-table-wrap">
+            <table className="messages-table">
+              <thead>
+                <tr>
+                  <th>Número</th>
+                  <th>Cliente</th>
+                  <th>Fecha</th>
+                  <th>Total</th>
+                  <th>Acciones</th>
+                </tr>
+              </thead>
+              <tbody>
+                {invoices.map((invoice) => (
+                  <tr
+                    key={invoice.id}
+                    className="billing-invoice-row"
+                    role="button"
+                    tabIndex={0}
+                    title="Abrir PDF de la factura"
+                    onClick={() => openInvoicePdf(invoice)}
+                    onKeyDown={(e) => handleInvoiceRowKeyDown(e, invoice)}
+                  >
+                    <td>{invoice.invoiceNumber}</td>
+                    <td>{invoice.customerName}</td>
+                    <td>{invoice.invoiceDate}</td>
+                    <td>{formatMoney(invoice.total)}</td>
+                    <td className="billing-actions-cell">
+                      <button
+                        type="button"
+                        className="btn btn-danger btn-sm"
+                        disabled={deletingInvoiceId === invoice.id}
+                        onClick={(event) => handleDeleteInvoice(event, invoice)}
+                      >
+                        {deletingInvoiceId === invoice.id ? 'Eliminando...' : 'Eliminar'}
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
+
+      {toast.show && (
+        <div className="toast-container">
+          <div className={`toast toast-${toast.type}`}>{toast.message}</div>
+        </div>
       )}
     </section>
   )

@@ -802,6 +802,141 @@
   font-size: 0.95rem;
 }
 
+.billing-form {
+  margin-top: 1rem;
+  display: grid;
+  gap: 0.9rem;
+}
+
+.billing-top-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.8rem;
+}
+
+.billing-top-fields label {
+  display: grid;
+  gap: 0.35rem;
+  color: #d0d7e4;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.billing-top-fields input,
+.billing-item-row input {
+  width: 100%;
+  border: 1px solid #384054;
+  border-radius: 8px;
+  background: #11151e;
+  color: #ffffff;
+  padding: 0.62rem 0.72rem;
+  font: inherit;
+}
+
+.billing-items-head {
+  margin-top: 0.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.billing-items-head h3 {
+  margin: 0;
+}
+
+.billing-items {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.billing-item-row {
+  display: grid;
+  grid-template-columns: minmax(240px, 1.4fr) 90px 120px 130px auto;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.billing-subtotal {
+  border: 1px solid #2f3649;
+  border-radius: 8px;
+  padding: 0.62rem 0.72rem;
+  text-align: right;
+  color: #f7b500;
+  font-weight: 700;
+  background: #121824;
+}
+
+.billing-footer {
+  margin-top: 0.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.8rem;
+  border-top: 1px solid #2a3040;
+  padding-top: 0.9rem;
+}
+
+.billing-total {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  color: #e8edf7;
+}
+
+.billing-total strong {
+  color: #f7b500;
+  font-size: 1.3rem;
+}
+
+.billing-history {
+  margin-top: 1.2rem;
+}
+
+.billing-history-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.35rem;
+}
+
+.billing-history-head h3 {
+  margin: 0;
+}
+
+.billing-regenerate-btn {
+  white-space: nowrap;
+}
+
+.billing-history-hint {
+  margin: 0 0 0.6rem;
+  font-size: 0.9rem;
+  color: #aeb7c8;
+}
+
+.billing-invoice-row {
+  cursor: pointer;
+}
+
+.billing-invoice-row:hover td {
+  background: rgba(247, 181, 0, 0.08);
+}
+
+.billing-invoice-row:focus-visible {
+  outline: 2px solid #f7b500;
+  outline-offset: -2px;
+}
+
+.billing-actions-cell {
+  min-width: 120px;
+}
+
+.billing-actions-cell .btn {
+  margin: 0;
+}
+
 .admin-carousel-upload {
   display: flex;
   flex-wrap: wrap;
@@ -881,6 +1016,58 @@
   font-size: 0.8rem;
   color: #aeb7c8;
   word-break: break-all;
+}
+
+.admin-upload-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(15, 17, 23, 0.78);
+  backdrop-filter: blur(2px);
+}
+
+.admin-upload-overlay-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  padding: 1.5rem 2rem;
+  background: #1a1f28;
+  border: 1px solid #2f3649;
+  border-radius: 12px;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.5);
+}
+
+.admin-upload-overlay-inner p {
+  margin: 0;
+  font-weight: 600;
+  color: #e8edf7;
+}
+
+.admin-upload-spinner {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: 3px solid #2f3649;
+  border-top-color: #f7b500;
+  animation: admin-upload-spin 0.75s linear infinite;
+}
+
+@keyframes admin-upload-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.admin-carousel-panel > .toast-container {
+  z-index: 2001;
+}
+
+.admin-billing-panel > .toast-container {
+  z-index: 2001;
 }
 
 .services::before,
@@ -1015,11 +1202,32 @@
   .messages-table {
     min-width: 680px;
   }
+
+  .billing-item-row {
+    grid-template-columns: 1fr 90px 120px;
+  }
+
+  .billing-subtotal {
+    grid-column: span 2;
+  }
 }
 
 @media (max-width: 700px) {
   .services-grid {
     grid-template-columns: 1fr;
+  }
+
+  .billing-top-fields {
+    grid-template-columns: 1fr;
+  }
+
+  .billing-item-row {
+    grid-template-columns: 1fr;
+  }
+
+  .billing-subtotal {
+    grid-column: auto;
+    text-align: left;
   }
 }
 
