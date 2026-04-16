@@ -583,6 +583,7 @@ export function AdminCarouselPanel({ apiUrl, companyName }) {
 }
 
 export function AdminBillingPanel({ apiUrl, companyName }) {
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
   const [customerName, setCustomerName] = useState('')
   const [invoiceDate, setInvoiceDate] = useState(() => new Date().toISOString().slice(0, 10))
   const [items, setItems] = useState([
@@ -651,6 +652,12 @@ export function AdminBillingPanel({ apiUrl, companyName }) {
       currency: 'USD',
       minimumFractionDigits: 2,
     })
+
+  const resetInvoiceForm = () => {
+    setCustomerName('')
+    setInvoiceDate(new Date().toISOString().slice(0, 10))
+    setItems([{ id: `item-${Date.now()}`, name: '', quantity: 1, price: 0 }])
+  }
 
   const fullPdfUrl = (pdfPath) => {
     if (!pdfPath) return null
@@ -805,6 +812,8 @@ export function AdminBillingPanel({ apiUrl, companyName }) {
         type: 'success',
         message: `Factura #${data?.invoice?.invoiceNumber || ''} generada con éxito.`,
       })
+      setIsCreateModalOpen(false)
+      resetInvoiceForm()
       await loadInvoices()
     } catch (error) {
       setToast({
@@ -831,101 +840,23 @@ export function AdminBillingPanel({ apiUrl, companyName }) {
       <h1 className="admin-main-title">{companyName}</h1>
       <h2>Facturacion</h2>
 
-      <form className="billing-form" onSubmit={handleGeneratePdf}>
-        <div className="billing-top-fields">
-          <label>
-            <span>Customer name</span>
-            <input
-              type="text"
-              value={customerName}
-              onChange={(e) => setCustomerName(e.target.value)}
-              placeholder="Nombre del cliente"
-              required
-            />
-          </label>
-          <label>
-            <span>Fecha</span>
-            <input
-              type="date"
-              value={invoiceDate}
-              onChange={(e) => setInvoiceDate(e.target.value)}
-              required
-            />
-          </label>
-        </div>
-
-        <div className="billing-items-head">
-          <h3>Items</h3>
-          <button type="button" className="btn btn-outline" onClick={addItem}>
-            + Agregar item
-          </button>
-        </div>
-
-        <div className="billing-items">
-          {items.map((item, index) => (
-            <div key={item.id} className="billing-item-row">
-              <input
-                type="text"
-                placeholder="Nombre del item"
-                value={item.name}
-                onChange={(e) => updateItem(item.id, 'name', e.target.value)}
-                required
-              />
-              <input
-                type="number"
-                min="1"
-                step="1"
-                placeholder="Cantidad"
-                value={item.quantity}
-                onChange={(e) => updateItem(item.id, 'quantity', e.target.value)}
-                required
-              />
-              <input
-                type="number"
-                min="0"
-                step="0.01"
-                placeholder="Valor"
-                value={item.price}
-                onChange={(e) => updateItem(item.id, 'price', e.target.value)}
-                required
-              />
-              <div className="billing-subtotal">
-                {formatMoney(Number(item.quantity || 0) * Number(item.price || 0))}
-              </div>
-              <button
-                type="button"
-                className="btn btn-danger btn-sm"
-                onClick={() => removeItem(item.id)}
-                disabled={items.length === 1}
-                aria-label={`Eliminar item ${index + 1}`}
-              >
-                Eliminar
-              </button>
-            </div>
-          ))}
-        </div>
-
-        <div className="billing-footer">
-          <div className="billing-total">
-            <span>Total:</span>
-            <strong>{formatMoney(total)}</strong>
-          </div>
-          <button
-            type="submit"
-            className="btn btn-primary"
-            disabled={generating || regeneratingDesign}
-          >
-            Generar PDF
-          </button>
-        </div>
-      </form>
+      <div className="billing-top-actions">
+        <button
+          type="button"
+          className="btn btn-primary"
+          disabled={generating || regeneratingDesign}
+          onClick={() => setIsCreateModalOpen(true)}
+        >
+          Crear nueva factura
+        </button>
+      </div>
 
       <section className="billing-history">
         <div className="billing-history-head">
           <h3>Facturas generadas</h3>
           <button
             type="button"
-            className="btn btn-outline billing-regenerate-btn"
+            className="btn btn-success billing-regenerate-btn"
             disabled={regeneratingDesign || generating || loadingInvoices || invoices.length === 0}
             onClick={handleRegenerateAllPdfs}
           >
@@ -982,6 +913,133 @@ export function AdminBillingPanel({ apiUrl, companyName }) {
           </div>
         )}
       </section>
+
+      {isCreateModalOpen && (
+        <div
+          className="admin-modal-backdrop"
+          role="presentation"
+          onClick={() => setIsCreateModalOpen(false)}
+        >
+          <div
+            className="admin-modal admin-billing-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="billing-modal-title"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="admin-modal-header">
+              <h3 id="billing-modal-title">Crear factura</h3>
+              <button
+                type="button"
+                className="admin-modal-close"
+                onClick={() => setIsCreateModalOpen(false)}
+                aria-label="Cerrar"
+              >
+                ×
+              </button>
+            </div>
+            <div className="admin-modal-body">
+              <form className="billing-form" onSubmit={handleGeneratePdf}>
+                <div className="billing-top-fields">
+                  <label>
+                    <span>Customer name</span>
+                    <input
+                      type="text"
+                      value={customerName}
+                      onChange={(e) => setCustomerName(e.target.value)}
+                      placeholder="Nombre del cliente"
+                      required
+                    />
+                  </label>
+                  <label>
+                    <span>Fecha</span>
+                    <input
+                      type="date"
+                      value={invoiceDate}
+                      onChange={(e) => setInvoiceDate(e.target.value)}
+                      required
+                    />
+                  </label>
+                </div>
+
+                <div className="billing-items-head">
+                  <h3>Items</h3>
+                  <button type="button" className="btn btn-success" onClick={addItem}>
+                    + Agregar item
+                  </button>
+                </div>
+
+                <div className="billing-items">
+                  {items.map((item, index) => (
+                    <div key={item.id} className="billing-item-row">
+                      <input
+                        type="text"
+                        placeholder="Nombre del item"
+                        value={item.name}
+                        onChange={(e) => updateItem(item.id, 'name', e.target.value)}
+                        required
+                      />
+                      <input
+                        type="number"
+                        min="1"
+                        step="1"
+                        placeholder="Cantidad"
+                        value={item.quantity}
+                        onChange={(e) => updateItem(item.id, 'quantity', e.target.value)}
+                        required
+                      />
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        placeholder="Valor"
+                        value={item.price}
+                        onChange={(e) => updateItem(item.id, 'price', e.target.value)}
+                        required
+                      />
+                      <div className="billing-subtotal">
+                        {formatMoney(Number(item.quantity || 0) * Number(item.price || 0))}
+                      </div>
+                      <button
+                        type="button"
+                        className="btn btn-danger btn-sm"
+                        onClick={() => removeItem(item.id)}
+                        disabled={items.length === 1}
+                        aria-label={`Eliminar item ${index + 1}`}
+                      >
+                        Eliminar
+                      </button>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="billing-footer">
+                  <div className="billing-total">
+                    <span>Total:</span>
+                    <strong>{formatMoney(total)}</strong>
+                  </div>
+                  <div className="billing-footer-actions">
+                    <button
+                      type="button"
+                      className="btn btn-outline"
+                      onClick={() => setIsCreateModalOpen(false)}
+                    >
+                      Cancelar
+                    </button>
+                    <button
+                      type="submit"
+                      className="btn btn-primary"
+                      disabled={generating || regeneratingDesign}
+                    >
+                      Generar PDF
+                    </button>
+                  </div>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
 
       {toast.show && (
         <div className="toast-container">
