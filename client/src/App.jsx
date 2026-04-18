@@ -1,6 +1,79 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { NavLink, Outlet } from 'react-router-dom'
+import QRCode from 'react-qr-code'
 import './App.css'
+
+const ADMIN_QR_TARGETS = {
+  domain: {
+    label: 'Dominio (HTTPS)',
+    url: 'https://rcohighlevelconstructionllc.com',
+  },
+  elasticIp: {
+    label: 'IP elástica',
+    url: 'http://3.19.33.248:5173/',
+  },
+}
+
+function downloadQrPngFromSvg(svgElement, filename) {
+  const size = 512
+  const clone = svgElement.cloneNode(true)
+  clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg')
+  clone.setAttribute('width', String(size))
+  clone.setAttribute('height', String(size))
+  const svgData = new XMLSerializer().serializeToString(clone)
+  const svgBlob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' })
+  const url = URL.createObjectURL(svgBlob)
+  const img = new Image()
+  img.onload = () => {
+    const canvas = document.createElement('canvas')
+    canvas.width = size
+    canvas.height = size
+    const ctx = canvas.getContext('2d')
+    ctx.fillStyle = '#ffffff'
+    ctx.fillRect(0, 0, size, size)
+    ctx.drawImage(img, 0, 0, size, size)
+    canvas.toBlob((blob) => {
+      URL.revokeObjectURL(url)
+      if (!blob) return
+      const a = document.createElement('a')
+      a.href = URL.createObjectURL(blob)
+      a.download = filename
+      a.click()
+      URL.revokeObjectURL(a.href)
+    }, 'image/png')
+  }
+  img.onerror = () => URL.revokeObjectURL(url)
+  img.src = url
+}
+
+const VIRTUAL_CARD_ASSETS = {
+  front: {
+    label: 'Frente',
+    file: 'tarjeta-frente.png',
+    downloadAs: 'rco-tarjeta-frente.png',
+  },
+  back: {
+    label: 'Reverso',
+    file: 'tarjeta-reverso.png',
+    downloadAs: 'rco-tarjeta-reverso.png',
+  },
+}
+
+function virtualCardPublicUrl(file) {
+  return `${import.meta.env.BASE_URL}virtual-card/${file}`
+}
+
+async function downloadUrlAsFile(url, filename) {
+  const response = await fetch(url)
+  if (!response.ok) throw new Error('download failed')
+  const blob = await response.blob()
+  const objectUrl = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = objectUrl
+  a.download = filename
+  a.click()
+  URL.revokeObjectURL(objectUrl)
+}
 
 export function AdminLayout({ apiUrl, companyName }) {
   const [password, setPassword] = useState('')
@@ -73,6 +146,22 @@ export function AdminLayout({ apiUrl, companyName }) {
             }
           >
             Facturacion
+          </NavLink>
+          <NavLink
+            to="/admin/qr"
+            className={({ isActive }) =>
+              `admin-sidebar-link${isActive ? ' active' : ''}`
+            }
+          >
+            QR
+          </NavLink>
+          <NavLink
+            to="/admin/tarjeta-virtual"
+            className={({ isActive }) =>
+              `admin-sidebar-link${isActive ? ' active' : ''}`
+            }
+          >
+            Tarjeta virtual
           </NavLink>
         </nav>
       </aside>
@@ -1046,6 +1135,135 @@ export function AdminBillingPanel({ apiUrl, companyName }) {
           <div className={`toast toast-${toast.type}`}>{toast.message}</div>
         </div>
       )}
+    </section>
+  )
+}
+
+// eslint-disable-next-line react/prop-types -- props validated at route level
+export function AdminQrPanel({ companyName }) {
+  const [mode, setMode] = useState('domain')
+  const target = ADMIN_QR_TARGETS[mode]
+  const qrWrapRef = useRef(null)
+
+  const handleDownloadQr = () => {
+    const svg = qrWrapRef.current?.querySelector('svg')
+    if (!svg) return
+    const filename =
+      mode === 'domain' ? 'qr-dominio.png' : 'qr-ip-elastica.png'
+    downloadQrPngFromSvg(svg, filename)
+  }
+
+  return (
+    <section className="admin-card admin-qr">
+      <h1 className="admin-main-title">{companyName}</h1>
+      <h2>Códigos QR</h2>
+      <p className="admin-qr-intro">
+        Elige qué enlace codificar. Al escanear el QR con el móvil se abrirá esa URL.
+      </p>
+
+      <div className="admin-qr-controls">
+        <label htmlFor="admin-qr-mode" className="admin-qr-label">
+          Mostrar QR de
+        </label>
+        <select
+          id="admin-qr-mode"
+          className="admin-qr-select"
+          value={mode}
+          onChange={(e) => setMode(e.target.value)}
+        >
+          <option value="domain">{ADMIN_QR_TARGETS.domain.label}</option>
+          <option value="elasticIp">{ADMIN_QR_TARGETS.elasticIp.label}</option>
+        </select>
+      </div>
+
+      <div className="admin-qr-display">
+        <div className="admin-qr-canvas" ref={qrWrapRef}>
+          <QRCode
+            value={target.url}
+            size={240}
+            level="M"
+            bgColor="#ffffff"
+            fgColor="#0f1117"
+          />
+        </div>
+        <p className="admin-qr-url">
+          <a href={target.url} target="_blank" rel="noopener noreferrer">
+            {target.url}
+          </a>
+        </p>
+        <button
+          type="button"
+          className="btn btn-primary admin-qr-download"
+          onClick={handleDownloadQr}
+        >
+          Descargar
+        </button>
+      </div>
+    </section>
+  )
+}
+
+// eslint-disable-next-line react/prop-types -- props validated at route level
+export function AdminVirtualCardPanel({ companyName }) {
+  const [downloadError, setDownloadError] = useState('')
+  const [downloading, setDownloading] = useState(null)
+
+  const handleDownload = async (side) => {
+    const asset = VIRTUAL_CARD_ASSETS[side]
+    if (!asset) return
+    setDownloadError('')
+    setDownloading(side)
+    try {
+      await downloadUrlAsFile(
+        virtualCardPublicUrl(asset.file),
+        asset.downloadAs,
+      )
+    } catch {
+      setDownloadError('No se pudo descargar la imagen. Inténtalo de nuevo.')
+    } finally {
+      setDownloading(null)
+    }
+  }
+
+  return (
+    <section className="admin-card admin-virtual-card">
+      <h1 className="admin-main-title">{companyName}</h1>
+      <h2>Tarjeta virtual</h2>
+      <p className="admin-virtual-card-intro">
+        Vista previa de la tarjeta (frente y reverso). Usa Descargar para
+        guardar cada imagen en tu dispositivo.
+      </p>
+
+      {downloadError && (
+        <p className="admin-error admin-virtual-card-error">{downloadError}</p>
+      )}
+
+      <div className="admin-virtual-card-grid">
+        {(['front', 'back']).map((side) => {
+          const asset = VIRTUAL_CARD_ASSETS[side]
+          const src = virtualCardPublicUrl(asset.file)
+          return (
+            <article key={side} className="admin-virtual-card-panel">
+              <h3 className="admin-virtual-card-side-title">{asset.label}</h3>
+              <div className="admin-virtual-card-preview">
+                <img
+                  src={src}
+                  alt={`Tarjeta virtual — ${asset.label}`}
+                  loading="lazy"
+                />
+              </div>
+              <button
+                type="button"
+                className="btn btn-primary admin-virtual-card-download"
+                onClick={() => handleDownload(side)}
+                disabled={downloading !== null}
+              >
+                {downloading === side ? 'Descargando…' : 'Descargar'}
+              </button>
+            </article>
+          )
+        })}
+      </div>
     </section>
   )
 }

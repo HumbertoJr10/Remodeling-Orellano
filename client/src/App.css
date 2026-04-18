@@ -483,6 +483,136 @@
   margin: 0 0 0.35rem;
 }
 
+.admin-qr h2 {
+  margin: 0 0 0.5rem;
+}
+
+.admin-qr-intro {
+  margin: 0 0 1rem;
+  color: #b8becc;
+  font-size: 0.95rem;
+  line-height: 1.45;
+}
+
+.admin-qr-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+  margin-bottom: 1.25rem;
+}
+
+.admin-qr-label {
+  font-weight: 600;
+  color: #d0d7e4;
+}
+
+.admin-qr-select {
+  min-width: 220px;
+  padding: 0.45rem 0.65rem;
+  border-radius: 8px;
+  border: 1px solid #2a3040;
+  background: #0f1117;
+  color: #e8edf7;
+  font: inherit;
+  cursor: pointer;
+}
+
+.admin-qr-select:focus {
+  outline: none;
+  border-color: #f7b500;
+  box-shadow: 0 0 0 2px rgba(247, 181, 0, 0.2);
+}
+
+.admin-qr-display {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+}
+
+.admin-qr-canvas {
+  padding: 1rem;
+  background: #ffffff;
+  border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+}
+
+.admin-qr-url {
+  margin: 0;
+  text-align: center;
+  word-break: break-all;
+  max-width: min(100%, 420px);
+}
+
+.admin-qr-url a {
+  color: #7eb8ff;
+  font-weight: 600;
+}
+
+.admin-qr-url a:hover {
+  color: #a8d0ff;
+}
+
+.admin-qr-download {
+  margin-top: 0.25rem;
+}
+
+.admin-virtual-card h2 {
+  margin: 0 0 0.5rem;
+}
+
+.admin-virtual-card-intro {
+  margin: 0 0 1.25rem;
+  color: #b8becc;
+  font-size: 0.95rem;
+  line-height: 1.45;
+}
+
+.admin-virtual-card-error {
+  margin: 0 0 1rem;
+}
+
+.admin-virtual-card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1.5rem;
+  align-items: start;
+}
+
+.admin-virtual-card-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.admin-virtual-card-side-title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+  color: #f7b500;
+  letter-spacing: 0.02em;
+}
+
+.admin-virtual-card-preview {
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid #2a3040;
+  background: #0a0c10;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
+}
+
+.admin-virtual-card-preview img {
+  display: block;
+  width: 100%;
+  height: auto;
+  vertical-align: middle;
+}
+
+.admin-virtual-card-download {
+  align-self: flex-start;
+}
+
 .admin-page {
   min-height: 100vh;
   display: flex;

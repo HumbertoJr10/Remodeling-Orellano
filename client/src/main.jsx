@@ -6,6 +6,8 @@ import App, {
   AdminCarouselPanel,
   AdminLayout,
   AdminMessagesPanel,
+  AdminQrPanel,
+  AdminVirtualCardPanel,
 } from './App.jsx'
 import './index.css'
 
@@ -34,6 +36,14 @@ ReactDOM.createRoot(document.getElementById('root')).render(
           <Route
             path="facturacion"
             element={<AdminBillingPanel apiUrl={apiUrl} companyName={companyName} />}
+          />
+          <Route
+            path="qr"
+            element={<AdminQrPanel companyName={companyName} />}
+          />
+          <Route
+            path="tarjeta-virtual"
+            element={<AdminVirtualCardPanel companyName={companyName} />}
           />
         </Route>
         <Route path="/create-skill" element={<Navigate to="/admin" replace />} />
